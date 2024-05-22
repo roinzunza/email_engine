@@ -1,109 +1,124 @@
-from datetime import datetime, timedelta
+"""
+Email notification engine for
+- events close to someones birthday
+- events within someones location
+
+customers List [Dict{}]
+events  List [Dict[]]
+"""
 import time
+from datetime import datetime, timedelta
+from geopy.distance import geodesic
+from typing import Tuple, Optional
 
-# Mock event data
-events = [
-    {"name": "Music Concert", "date": datetime(2024, 6, 15)},
-    {"name": "Art Exhibition", "date": datetime(2024, 7, 5)},
-    {"name": "Food Festival", "date": datetime(2024, 8, 20)},
-]
+class EmailEngine:
 
-# Mock customer data
-customers = [
-    {"name": "Alice", "birthday": datetime(1990, 5, 15)},
-    {"name": "Bob", "birthday": datetime(1985, 6, 25)},
-    {"name": "Charlie", "birthday": datetime(1988, 7, 10)},
-]
-
-def find_events_close_to_birthday(customer, events, days_before=30):
-    """
-    Find events close to a customer's birthday within a specified number of days.
-
-    Args:
-        customer (dict): Customer information containing 'name' and 'birthday'.
-        events (list): List of events with 'name' and 'date'.
-        days_before (int): Number of days before the birthday to consider.
-
-    Returns:
-        list: List of events close to the customer's birthday.
-    """
-    print(f" ----------------- find_events_close_to_birthday -----------------")
-    birthday = customer['birthday']
-    print(f"birthday {birthday}")
-    birthday_this_year = datetime(datetime.now().year, birthday.month, birthday.day)
-    print(f"birthday_this_year {birthday_this_year}")
-    start_date = birthday_this_year - timedelta(days=days_before)
-    end_date = birthday_this_year + timedelta(days=days_before)
-
-    relevant_events = []
-    for event in events:
-        print(f"event['date'] {event['date']}")
-        print(f"start_date {start_date} event['date'] { event['date']} end_date{end_date}")
-        if start_date <= event['date'] <= end_date:
-            relevant_events.append(event['name'])
-    print(f"relevant_events {relevant_events}")
-    return relevant_events
-
-def notify_customers(event, customers):
-    """
-    Notify customers about the given event.
-
-    Args:
-        event (dict): Event information containing 'name' and 'date'.
-        customers (list): List of customers with 'name' and 'birthday'.
-    """
-    event_date = event['date']
-    print(f" ----------------- notify_customers -----------------")
-    for customer in customers:
-        relevant_events = find_events_close_to_birthday(customer, [event])
-        if event_date.date() == customer['birthday'].date() and event['name'] in relevant_events:
-            print(f"Notifying {customer['name']} about the {event['name']} happening on {event_date}")
-
-def event_listener(events, customers):
-    """
-    Listen for new events and notify relevant customers.
-
-    Args:
-        events (list): List of events with 'name' and 'date'.
-        customers (list): List of customers with 'name' and 'birthday'.
-    """
-    # while True:
-    # Mock new events arriving (for demonstration)
-    new_events = [
-        {"name": "Comedy Show", "date": datetime.now() + timedelta(days=5)},
-        {"name": "Movie Screening", "date": datetime.now() + timedelta(days=10)},
-    ]
-
-    print(new_events)
-    
-    for event in new_events:
-        notify_customers(event, customers)
-    
-    # Sleep for a while before checking for new events again
-    # time.sleep(60)  # Check every minute
-
-# Start the event listener
-event_listener(events, customers)
+    def __init__(self) -> None:
+        self._events_near_customer = {}
+        self._events_within_birthday = {}
 
 
-"""
-sequence
-
-listen
- -> get new events
- -> check if any events full under current customers
-    # check customers bday and event data within x days
-    ## if it falls under add to notify list
--> send message to all customers to notify
-
-## need
-- customers
-- events
+    @staticmethod
+    def _send_notification(notify_list):
+        print(" ------------ _send_notification ------------")
+        for customer, events in notify_list.items():
+            # assume api request
+            try:
+                print(f"sending {customer} email for events: {events}")
+            except Exception as e:
+                print(repr(e))
 
 
-# ask 
-    how events are coming in
-    what format the date is in
-    how are customers are currently stored
-    
-"""
+    def _event_close_to_birthday(self, event: dict, customer: dict) -> None:
+        # would append to _EVENTS_WITHIN_BIRTHDAY
+        pass
+
+
+    @staticmethod
+    def _calculate_distance(event_coord: Tuple[float, float], customer_coord: Tuple[float, float]) -> Optional[float]:
+        """
+        Calculate the distance between two coordinates using geodesic distance.
+
+        Args:
+            event_coord (Tuple[float, float]): The coordinates (latitude, longitude) of the event.
+            customer_coord (Tuple[float, float]): The coordinates (latitude, longitude) of the customer.
+
+        Returns:
+            Optional[float]: The distance between the two coordinates in miles, or None if any coordinate is missing.
+        """
+
+        if None in event_coord or None in customer_coord:
+            return
+        
+        try:
+            return geodesic(event_coord, customer_coord).miles
+        except Exception as e:
+            print(repr(e))
+            return None
+
+
+    def _event_near_customer(self, event: dict, customer: dict) -> None:
+        print(" ------------ _event_near_customer ------------")
+
+        this_event_location = event.get('location')
+        this_customer_location = customer.get('location')
+
+        # skip on those without location data
+        if this_event_location is None or this_customer_location is None:
+            return None
+        
+        this_event_coord = (this_event_location.get('lat'), this_event_location.get('long'))
+
+        this_customer_coord = (this_customer_location.get('lat'),this_customer_location.get('long'))
+        this_distance = EmailEngine._calculate_distance(this_event_coord, this_customer_coord)
+
+        if this_distance is not None and this_distance <= customer.get("threshold", float('inf')):
+            if customer['name'] not in self._events_near_customer:
+                self._events_near_customer[customer['name']] = [event]
+            else:
+                self._events_near_customer[customer['name']].append(event)
+
+
+    def driver(self, event: dict, customers: list) -> None:
+        for customer in customers:
+            self._event_near_customer(event, customer)
+            self._event_close_to_birthday(event, customer)
+
+        notify_customers_near = self._events_near_customer.copy()
+        EmailEngine._send_notification(notify_customers_near)
+        self._events_near_customer.clear()
+
+        notify_customers_birthday = self._events_within_birthday.copy()
+        EmailEngine._send_notification(notify_customers_birthday)
+        self._events_within_birthday.clear()
+
+
+def listener():
+
+    this_email_engine = EmailEngine()
+
+    while True:
+        # mock event data
+        events = [
+            {"name": "Music Concert", "date": datetime(2024, 6, 15), "location": {"lat": 40.7128, "long": -74.0060}},  # New York, NY
+            {"name": "Art Exhibition", "date": datetime(2024, 7, 5), "location": {"lat": 34.0522, "long": -118.2437}},  # Los Angeles, CA
+            {"name": "Food Festival", "date": datetime(2024, 8, 20), "location": {"lat": 41.8781, "long": -87.6298}},  # Chicago, IL
+            {"name": "Gaming experience", "date": datetime(2024, 6, 15), "location": {"lat": 40.7128, "long": -74.0060}},  # New York, NY
+        ]
+
+        # Mock customer data from API
+        customers = [
+            {"name": "Alice", "birthday": datetime(1990, 5, 15), "location": {"lat": 40.7128, "long": -74.0060}, "threshold": 300},  # New York, NY
+            {"name": "Bob", "birthday": datetime(1985, 6, 25), "location": {"lat": 51.5074, "long": -0.1278}, "threshold": 10000},  # London, UK
+            {"name": "Charlie", "birthday": datetime(1988, 7, 10), "location": {"lat": 48.8566, "long": 2.3522}, "threshold": 100},  # Paris, France
+        ]
+
+        for event in events:
+            this_email_engine.driver(event, customers)
+
+        time.sleep(10)
+
+
+listener()
+
+
