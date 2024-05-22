@@ -21,6 +21,19 @@ class EmailEngine:
 
 
         return ["found"], None
+    
+
+def testing():
+    from geopy.distance import geodesic
+
+    # Example coordinates for two places (New York and San Francisco)
+    coords1 = (40.7128, -74.0060)  # Latitude and longitude of New York City
+    coords2 = (37.7749, -122.4194)  # Latitude and longitude of San Francisco
+
+    # Calculate the distance using geopy
+    distance = geodesic(coords1, coords2).kilometers
+
+    print(f"Distance between the two places: {distance:.2f} kilometers")
 
 def listener():
 
