@@ -1,6 +1,9 @@
-from email_notification_engine import EmailNotificationEngine
+from email_engine import EmailEngine
 from datetime import datetime, timedelta
 from flask import Flask, request, jsonify
+from customer import Customer
+from event import Event
+from typing import List
 
 app = Flask(__name__)
 
@@ -14,33 +17,31 @@ def email_engine():
 
     data = request.get_json()
     events = data.get('events')
-    subscribers = data.get('subscribers')
+    customer = data.get('customer')
 
-    # mock event data
-    events = [
-        {"name": "Music Concert", "date": datetime(2024, 6, 15), "location": {"lat": 40.7128, "long": -74.0060}},  # New York, NY
-        {"name": "Art Exhibition", "date": datetime(2024, 7, 5), "location": {"lat": 34.0522, "long": -118.2437}},  # Los Angeles, CA
-        {"name": "Food Festival", "date": datetime(2024, 8, 20), "location": {"lat": 41.8781, "long": -87.6298}},  # Chicago, IL
-        {"name": "Gaming experience", "date": datetime(2024, 6, 15), "location": {"lat": 40.7128, "long": -74.0060}},  # New York, NY
+    # List of mock Event objects
+    events: List[Event] = [
+        Event("Birthday Party", "New York", "2024-06-15", {"lat": 40.7128, "long": -74.0060}),
+        Event("Conference", "San Francisco", "2024-07-20", {"lat": 40.7128, "long": -74.0060}),
+        Event("Wedding", "Chicago", "2024-08-30", {"lat": 40.7128, "long": -74.0060}),
+        Event("Music Festival", "Los Angeles", "2024-09-25", {"lat": 40.7128, "long": -74.0060}),
+        Event("Art Exhibition", "Miami", "2024-10-10", {"lat": 40.7128, "long": -74.0060}),
+        Event("Anime Exhibition", "New York", "2024-06-10", {"lat": 40.7128, "long": -74.0060})
     ]
 
-    # Mock customer data from API
-    subscribers = [
-        {"name": "Alice", "birthday": datetime(1990, 5, 15), "location": {"lat": 40.7128, "long": -74.0060}, "threshold": 300},  # New York, NY
-        {"name": "Bob", "birthday": datetime(1985, 6, 25), "location": {"lat": 51.5074, "long": -0.1278}, "threshold": 10000},  # London, UK
-        {"name": "Charlie", "birthday": datetime(1988, 7, 10), "location": {"lat": 48.8566, "long": 2.3522}, "threshold": 100},  # Paris, France
-    ]
-
+    customer = Customer("John Doe", "1990-01-01", "New York")
 
     if events is None or not events:
         return jsonify({'message': 'no events'}), 400
     
-    if subscribers is None or not subscribers:
+    if customer is None or not customer:
         return jsonify({'message': 'no subscribers'}), 400
     
-    engine = EmailNotificationEngine(events, subscribers)
-    engine.process_events(engine.validate_distance, "nearest")
-    engine.process_events(engine.validate_birthday, "close to birthday")
+    engine = EmailEngine(events, customer)
+    birthday_notifications = engine.process_events(events, customer, engine.process_birthday_based, type="birthday")
+    engine.send_email(birthday_notifications)
+    location_notifications = engine.process_events(events, customer, engine.process_location_based, type= "location")
+    engine.send_email(location_notifications)
 
     return jsonify({'message': 'success'}), 200
 
