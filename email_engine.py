@@ -15,37 +15,38 @@ from event import Event
 
 class EmailEngine:
 
-    def __init__(self, events, customer) -> None:
-        self.events = events
-        self.customer = customer
+    def __init__(self) -> None:
+        pass
 
     def send_email(self, notifications: str) -> None:
+        """Sends email notifications."""
         # place holder for sending api request to 3rd party Email API
         print(notifications)
 
 
-    def get_notification_details(self, events_found: List[Event], type= "") -> str:
+    def get_notification_details(self, events_found: List[Event], customer: Customer, type= "") -> str:
+        """Generates notification details based on found events."""
 
         notification_details = ""
         for event in events_found:
             notification_details += f"{event.name}, {event.city}, {event.date} "
 
 
-        return f"Hi {self.customer.name} these events based on your {type} are in your area: {notification_details}"
+        return f"Hi {customer.name} these events based on your {type} are in your area: {notification_details}"
     
 
-    def process_location_based(self, event: Event, customer: Customer):
-
+    def filter_events_by_location(self, event: Event, customer: Customer):
+        """Filters events based on customer's location."""
         if event.city ==  customer.city:
             return event
         
 
-    def find_nearest(self, events: List[Event]) -> List[Event]:
-
+    def find_nearest_event(self, events: List[Event], customer: Customer) -> List[Event]:
+        """Finds the nearest event based on customer's birthday."""
         min_days_away = float("inf")
         event_closest = None
 
-        this_birthday = datetime.strptime(self.customer.birthday, "%Y-%m-%d")
+        this_birthday = datetime.strptime(customer.birthday, "%Y-%m-%d")
         this_year_birthday = this_birthday.replace(year=datetime.now().year)
 
         for event in events:
@@ -60,11 +61,11 @@ class EmailEngine:
         return [event_closest]
 
 
-    def process_birthday_based(self, event: Event, customer: Customer) -> Event:
-
+    def filter_events_by_birthday(self, event: Event, customer: Customer) -> Event:
+        """Finds the nearest event based on customer's birthday."""
         this_event_date = datetime.strptime(event.date, "%Y-%m-%d")
 
-        this_birthday = datetime.strptime(self.customer.birthday, "%Y-%m-%d")
+        this_birthday = datetime.strptime(customer.birthday, "%Y-%m-%d")
         this_year_birthday = this_birthday.replace(year=datetime.now().year)
 
         if this_year_birthday < this_event_date:
@@ -72,6 +73,7 @@ class EmailEngine:
 
 
     def process_events(self, events: List[Event], customer: Customer, func_name, type= "") -> str:
+        """Processes events based on the provided event filter."""
         events_found = []
         for event in events:
             this_event = func_name(event, customer)
@@ -79,9 +81,9 @@ class EmailEngine:
                 events_found.append(this_event)
 
         if type == "birthday":
-            events_found  = self.find_nearest(events_found) 
+            events_found  = self.find_nearest_event(events_found, customer) 
             
-        notification_details = self.get_notification_details(events_found, type)
+        notification_details = self.get_notification_details(events_found, customer, type)
 
         events_found.clear()
         return notification_details
@@ -104,9 +106,9 @@ def main():
     customer1 = Customer("John Doe", "1990-01-01", "New York")
 
     engine = EmailEngine(events, customer1)
-    birthday_notifications = engine.process_events(events, customer1, engine.process_birthday_based, type="birthday")
+    birthday_notifications = engine.process_events(events, customer1, engine.filter_events_by_birthday, type="birthday")
     engine.send_email(birthday_notifications)
-    location_notifications = engine.process_events(events, customer1, engine.process_location_based, type= "location")
+    location_notifications = engine.process_events(events, customer1, engine.filter_events_by_location, type= "location")
     engine.send_email(location_notifications)
 
 
