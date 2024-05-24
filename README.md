@@ -1,10 +1,7 @@
 
 
 # Email Engine
-
-Listens for events and sends email notifications from a set of subsribers
-- events closest to birthday
-- events based on location
+- showcase OOP design (Modular Design:, Encapsulation, Reusability)
 
 ## dependencies
 [Geopy Distance Documentation](https://geopy.readthedocs.io/en/stable/#module-geopy.distance)
